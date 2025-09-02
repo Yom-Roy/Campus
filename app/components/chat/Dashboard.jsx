@@ -282,7 +282,7 @@ export default function Dashboard() {
                 {/* Center Panel: Chat */}
                 <div
                     className={`flex-1 rounded-2xl p-3 md:p-4 bg-white/40 md:bg-white/40 backdrop-blur-md shadow-md flex flex-col h-full
-        ${(mobileView === "campus" && !selectedCampus) ? "hidden md:flex" : "flex"}`}
+    ${(mobileView === "campus" && !selectedCampus) ? "hidden md:flex" : "flex"}`}
                 >
                     {selectedCampus ? (
                         <>
@@ -295,7 +295,10 @@ export default function Dashboard() {
                             </div>
 
                             {/* Messages */}
-                            <div className="flex-1 overflow-y-auto">
+                            <div
+                                className="flex-1 overflow-y-auto"
+                                style={{ maxHeight: mobileView === "campus" ? "70vh" : "auto" }}
+                            >
                                 <MesList {...propsForMessages} />
                             </div>
 
@@ -310,7 +313,16 @@ export default function Dashboard() {
                             <p className="text-center mt-2 text-sm">Select a campus to start messaging.</p>
                         </div>
                     )}
+
+                    {/* Mobile-only placeholder view when no campus is selected */}
+                    {mobileView === "campus" && !selectedCampus && (
+                        <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
+                            <Campus />
+                            <p className="text-center mt-2 text-sm">Select a campus to start messaging.</p>
+                        </div>
+                    )}
                 </div>
+
 
                 {/* Right Panel: Filters + Global Campuses */}
                 <div

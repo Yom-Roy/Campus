@@ -195,7 +195,7 @@ export default function TagInput({
                                     textarea.style.height = "auto"; // reset height
                                     textarea.style.height = `${Math.min(textarea.scrollHeight, 100)}px`; // grow until max 100px
                                 }}
-                                placeholder="Message Texts on Twitter"
+                                placeholder="Message anything "
                                 rows={1}
                                 className="flex-1 max-h-[100px] bg-transparent outline-none text-gray-800 placeholder:text-gray-400 resize-none overflow-y-auto p-1 text-xs md:text-sm"
                                 disabled={loading}
