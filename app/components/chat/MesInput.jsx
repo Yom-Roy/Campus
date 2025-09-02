@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import "remixicon/fonts/remixicon.css";
+import { MessageCircleReply } from "lucide-react";
 
 const TAGS = [
     { name: "Note", color: "indigo", icon: "ri-book-2-line", iconColor: "text-indigo-500" },
@@ -72,18 +73,30 @@ export default function MesInput({
                     >
                         <div className="flex items-start gap-3 p-3 bg-white/50 backdrop-blur-sm border border-gray-200 rounded-xl shadow-sm">
                             <div className="flex-shrink-0">
-                                <i className="ri-reply-line text-blue-500 text-lg" />
+                                <MessageCircleReply className="ri-reply-line text-blue-500 text-lg" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-sm font-medium text-gray-700">
-                                        Replying to {replyingTo.userId?.uid === user?.uid ? 'yourself' : (replyingTo.userId?.username || 'Unknown')}
+                                        Replying to {replyingTo?.user?.uid === user?.uid
+                                            ? "yourself"
+                                            : replyingTo?.user?.username || "Unknown"}
+
                                     </span>
-                                    {replyingTo.tag && replyingTo.tag !== 'Message' && (
-                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                                            {replyingTo.tag}
-                                        </span>
+                                    {replyingTo?.tag && replyingTo.tag !== "Message" && (
+                                        <div
+                                            className={`flex items-center px-1 md:px-2 py-0.5 rounded-full text-xs md:text-sm font-medium border border-${TAGS.find((t) => t.name === replyingTo.tag)?.color || "gray"
+                                                }-500 bg-${TAGS.find((t) => t.name === replyingTo.tag)?.color || "gray"}-100`}
+                                        >
+                                            <i
+                                                className={`${TAGS.find((t) => t.name === replyingTo.tag)?.icon
+                                                    } ${TAGS.find((t) => t.name === replyingTo.tag)?.iconColor
+                                                    } text-xs md:text-sm`}
+                                            />
+                                            <span className="ml-1 text-gray-800">{replyingTo.tag}</span>
+                                        </div>
                                     )}
+
                                 </div>
                                 <p className="text-sm text-gray-600 break-words">
                                     {truncateText(replyingTo.text)}

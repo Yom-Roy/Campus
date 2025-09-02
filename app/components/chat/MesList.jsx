@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -34,15 +35,12 @@ export default function MesList({
     const [isMobile, setIsMobile] = useState(false);
     const messageRefs = useRef({});
 
-    const safeMessages = Array.isArray(messages?.messages)
-        ? messages.messages
-        : [];
+    const safeMessages = Array.isArray(messages) ? messages : [];
 
     useEffect(() => {
         const checkIsMobile = () => {
             setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
         };
-
         checkIsMobile();
         window.addEventListener("resize", checkIsMobile);
         return () => window.removeEventListener("resize", checkIsMobile);
@@ -81,7 +79,7 @@ export default function MesList({
         const { startX, currentX } = swipeData[mid];
         const deltaX = currentX - startX;
 
-        // Swipe left = reply
+        // Swipe left to reply
         if (e.type === "touchend" && deltaX < -50) {
             handleReplyClick(message);
         }
@@ -93,7 +91,9 @@ export default function MesList({
     };
 
     const handleDoubleClick = (message) => {
-        if (!isMobile) handleReplyClick(message);
+        if (!isMobile) {
+            handleReplyClick(message);
+        }
     };
 
     const getSwipeOffset = (mid) => {
@@ -108,7 +108,7 @@ export default function MesList({
             className="flex-1 space-y-3 relative scroll-smooth"
         >
             <AnimatePresence>
-                {/* Campus Description Bubble */}
+                {/* Campus description bubble */}
                 {selectedCampus?.description && (
                     <motion.div
                         key={`campus-desc-${selectedCampus.cid}`}
@@ -120,12 +120,7 @@ export default function MesList({
                     >
                         <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/30 text-gray-800 shadow text-sm max-w-[70%]">
                             {selectedCampus.name === "Campus" ? (
-                                <Image
-                                    alt="campus"
-                                    src="/campus.png"
-                                    height={30}
-                                    width={30}
-                                />
+                                <Image alt="campus" src="/campus.png" height={30} width={30} />
                             ) : (
                                 <i className="ri-file-text-line text-lg" />
                             )}
@@ -142,18 +137,18 @@ export default function MesList({
 
                     return (
                         <motion.div
+                            onDoubleClick={() => handleDoubleClick(msg)}
+                            onTouchStart={(e) => handleSwipeStart(e, msg.mid)}
+                            onTouchMove={(e) => handleSwipeMove(e, msg.mid)}
+                            onTouchEnd={(e) => handleSwipeEnd(e, msg.mid, msg)}
                             key={`${selectedCampus?.cid || "none"}-${msg.mid}`}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.3 }}
-                            className={`flex ${isMine ? "justify-end" : "justify-start"} mb-2`}
-                            onTouchStart={(e) => handleSwipeStart(e, msg.mid)}
-                            onTouchMove={(e) => handleSwipeMove(e, msg.mid)}
-                            onTouchEnd={(e) => handleSwipeEnd(e, msg.mid, msg)}
-                            onDoubleClick={() => handleDoubleClick(msg)}
+                            className={`flex ${isMine ? "justify-end" : "justify-start"
+                                } mb-2`}
                             style={{ transform: `translateX(${getSwipeOffset(msg.mid)}px)` }}
-                            ref={(el) => (messageRefs.current[msg.mid] = el)}
                         >
                             <div
                                 className={`min-w-[20vh] group no-scrollbar max-w-[30vh] lg:max-w-[40vh] max-h-[50vh] overflow-y-auto rounded-2xl shadow p-3 text-sm flex flex-col gap-2 ${isMine
@@ -161,7 +156,7 @@ export default function MesList({
                                     : "bg-gray-100 text-gray-800"
                                     }`}
                             >
-                                {/* Reply Bubble */}
+                                {/* Reply bubble */}
                                 {msg.replyTo && (
                                     <div
                                         className={`mb-2 rounded-lg overflow-hidden ${isMine ? "bg-blue-600/20" : "bg-gray-200/80"
@@ -169,9 +164,8 @@ export default function MesList({
                                     >
                                         <div className="flex items-start gap-2 p-2">
                                             <MessageCircleReply
-                                                size={14}
-                                                className={`${isMine ? "text-blue-300" : "text-gray-500"
-                                                    }`}
+                                                size={16}
+                                                className={isMine ? "text-blue-300" : "text-gray-500"}
                                             />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -179,14 +173,18 @@ export default function MesList({
                                                         className={`text-xs font-semibold ${isMine ? "text-blue-200" : "text-gray-700"
                                                             }`}
                                                     >
-                                                        {msg.replyTo.username === user?.username
-                                                            ? "You"
-                                                            : msg.replyTo.username || "Unknown"}
+                                                        {msg?.replyTo?.user
+                                                            ? msg.replyTo.user.uid === user?.uid
+                                                                ? "You"
+                                                                : msg.replyTo.user.username || "Unknown"
+                                                            : "Unknown"}
+
+
                                                     </span>
                                                 </div>
                                                 <p
-                                                    className={`text-xs ${isMine ? "text-blue-100/90" : "text-gray-600"
-                                                        } leading-tight`}
+                                                    className={`text-xs leading-tight ${isMine ? "text-blue-100/90" : "text-gray-600"
+                                                        }`}
                                                 >
                                                     {msg.replyTo.text || "(No message)"}
                                                 </p>
@@ -255,7 +253,7 @@ export default function MesList({
                                     </div>
                                 )}
 
-                                {/* Message Text */}
+                                {/* Message text */}
                                 <p className="break-words">{msg.text}</p>
                             </div>
                         </motion.div>

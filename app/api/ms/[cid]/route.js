@@ -56,9 +56,11 @@ export async function GET(req, { params }) {
                     replyTo: row.isReply
                         ? {
                             mid: row.replyToId,
-                            uid: row.replyToUserId,
-                            username: row.replyToUsername,
                             text: row.replyToText,
+                            user: {
+                                uid: row.replyToUserId,
+                                username: row.replyToUsername,
+                            },
                         }
                         : null,
                     user: {
@@ -88,6 +90,9 @@ export async function GET(req, { params }) {
         });
     } catch (err) {
         console.error("[FETCH_MESSAGES_ERROR]", err);
-        return new Response(JSON.stringify({ error: err.message, messages: [] }), { status: 500 });
+        return new Response(
+            JSON.stringify({ error: err.message, messages: [] }),
+            { status: 500 }
+        );
     }
 }
