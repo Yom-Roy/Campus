@@ -1,63 +1,93 @@
+// app/api/campus/[cid]/route.js
 import { db } from "@/app/db";
 import { messages, users, files } from "@/app/db/schema/campus";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export async function GET(req, { params }) {
     try {
         const { cid } = await params;
+        const campusId = parseInt(cid, 10);
 
-        // First, get messages with user info
-        const messagesData = await db
+        if (!campusId || isNaN(campusId)) {
+            return new Response(
+                JSON.stringify({ error: "Invalid campus ID", messages: [] }),
+                { status: 400 }
+            );
+        }
+
+        // Fetch raw messages + joined user + files
+        const rows = await db
             .select({
                 mid: messages.mid,
+                campusId: messages.campusId,
                 text: messages.text,
                 tag: messages.tag,
                 createdAt: messages.createdAt,
-                userId: messages.userId,
-                userUid: users.uid,
-                username: users.username,
+                isReply: messages.isReply,
+                replyToId: messages.replyToId,
+                replyToUserId: messages.replyToUserId,
+                replyToUsername: messages.replyToUsername,
+                replyToText: messages.replyToText,
+                user_uid: users.uid,
+                user_username: users.username,
+                user_email: users.email,
+                file_id: files.id,
+                file_filename: files.filename,
+                file_url: files.url,
+                file_type: files.fileType,
             })
             .from(messages)
-            .innerJoin(users, eq(messages.userId, users.uid))
-            .where(eq(messages.campusId, parseInt(cid)))
+            .leftJoin(users, eq(messages.userId, users.uid))
+            .leftJoin(files, eq(messages.mid, files.messageId))
+            .where(eq(messages.campusId, campusId))
             .orderBy(messages.createdAt);
 
-        // Get files for all messages at once
-        const messageIds = messagesData.map(msg => msg.mid);
+        // Group files under messages
+        const map = new Map();
+        for (const row of rows) {
+            if (!map.has(row.mid)) {
+                map.set(row.mid, {
+                    mid: row.mid,
+                    campusId: row.campusId,
+                    text: row.text,
+                    tag: row.tag,
+                    createdAt: row.createdAt,
+                    isReply: row.isReply,
+                    replyTo: row.isReply
+                        ? {
+                            mid: row.replyToId,
+                            uid: row.replyToUserId,
+                            username: row.replyToUsername,
+                            text: row.replyToText,
+                        }
+                        : null,
+                    user: {
+                        uid: row.user_uid,
+                        username: row.user_username,
+                        email: row.user_email,
+                    },
+                    files: [],
+                });
+            }
 
-        let filesData = [];
-        if (messageIds.length > 0) {
-            filesData = await db
-                .select()
-                .from(files)
-                .where(inArray(files.messageId, messageIds));
+            if (row.file_id) {
+                map.get(row.mid).files.push({
+                    id: row.file_id,
+                    filename: row.file_filename,
+                    url: row.file_url,
+                    fileType: row.file_type,
+                });
+            }
         }
 
-        // Group files by messageId
-        const filesByMessage = {};
-        filesData.forEach(file => {
-            if (!filesByMessage[file.messageId]) {
-                filesByMessage[file.messageId] = [];
-            }
-            filesByMessage[file.messageId].push(file);
+        const messagesData = Array.from(map.values());
+
+        return new Response(JSON.stringify({ messages: messagesData }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
         });
-
-        // Format the response to match your frontend expectations
-        const formattedMessages = messagesData.map(msg => ({
-            mid: msg.mid,
-            text: msg.text,
-            tag: msg.tag,
-            createdAt: msg.createdAt,
-            userId: {
-                uid: msg.userUid,
-                username: msg.username,
-            },
-            files: filesByMessage[msg.mid] || [],
-        }));
-
-        return Response.json(formattedMessages);
     } catch (err) {
-        console.error("Error fetching messages:", err);
-        return Response.json({ error: err.message }, { status: 500 });
+        console.error("[FETCH_MESSAGES_ERROR]", err);
+        return new Response(JSON.stringify({ error: err.message, messages: [] }), { status: 500 });
     }
 }

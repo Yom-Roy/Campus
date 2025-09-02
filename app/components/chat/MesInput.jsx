@@ -10,7 +10,7 @@ const TAGS = [
     { name: "Summary", color: "rose", icon: "ri-file-list-line", iconColor: "text-rose-500" },
 ];
 
-export default function TagInput({
+export default function MesInput({
     newMessage,
     setNewMessage,
     handleSendMessage,
@@ -22,10 +22,12 @@ export default function TagInput({
     handleFileChange,
     attachedFiles,
     removeFile,
-    user
+    user,
+    // Reply-related props
+    replyingTo,
+    onCancelReply
 }) {
     const [showTags, setShowTags] = useState(false);
-    // Add a ref to the tag
     const tagRef = useRef(null);
     const [tagWidth, setTagWidth] = useState(0);
 
@@ -38,15 +40,67 @@ export default function TagInput({
         }
     }, [newTag, newMessage]);
 
-
     const handleSelectTag = (tag) => {
         setNewTag(newTag === tag ? null : tag);
         setShowTags(false);
     };
 
+    const truncateText = (text, maxLength = 60) => {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + "...";
+    };
+
+    // Handle send with Enter key
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    };
 
     return (
         <>
+            {/* Reply Preview */}
+            <AnimatePresence>
+                {replyingTo && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: "auto" }}
+                        exit={{ opacity: 0, y: 10, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="mb-3 mx-2"
+                    >
+                        <div className="flex items-start gap-3 p-3 bg-white/50 backdrop-blur-sm border border-gray-200 rounded-xl shadow-sm">
+                            <div className="flex-shrink-0">
+                                <i className="ri-reply-line text-blue-500 text-lg" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-gray-700">
+                                        Replying to {replyingTo.userId?.uid === user?.uid ? 'yourself' : (replyingTo.userId?.username || 'Unknown')}
+                                    </span>
+                                    {replyingTo.tag && replyingTo.tag !== 'Message' && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                            {replyingTo.tag}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-sm text-gray-600 break-words">
+                                    {truncateText(replyingTo.text)}
+                                </p>
+                            </div>
+                            <button
+                                onClick={onCancelReply}
+                                className="flex-shrink-0 p-1 hover:bg-gray-200/50 rounded-full transition-colors"
+                                title="Cancel reply"
+                            >
+                                <i className="ri-close-line text-gray-500 text-sm" />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* File preview */}
             {attachedFiles?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2 md:gap-3">
@@ -150,7 +204,7 @@ export default function TagInput({
                     {/* Middle input box */}
                     <div
                         className={`flex flex-col flex-1 px-2 md:px-3 py-1 rounded-t-2xl rounded-br-2xl rounded-bl transition border relative shadow-md ${newTag ? `border-${TAGS.find((t) => t.name === newTag)?.color}-500 bg-white backdrop-blur-md` : "border-gray-300 bg-white backdrop-blur-md"
-                            }`}
+                            } ${replyingTo ? 'border-blue-400 ring-1 ring-blue-200' : ''}`}
                     >
                         {/* Tag pill */}
                         {newTag && (
@@ -190,12 +244,13 @@ export default function TagInput({
                                 ref={textareaRef}
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
+                                onKeyDown={handleKeyPress}
                                 onInput={(e) => {
                                     const textarea = e.target;
                                     textarea.style.height = "auto"; // reset height
                                     textarea.style.height = `${Math.min(textarea.scrollHeight, 100)}px`; // grow until max 100px
                                 }}
-                                placeholder="Message anything "
+                                placeholder={replyingTo ? "Type your reply..." : "Message anything "}
                                 rows={1}
                                 className="flex-1 max-h-[100px] bg-transparent outline-none text-gray-800 placeholder:text-gray-400 resize-none overflow-y-auto p-1 text-xs md:text-sm"
                                 disabled={loading}
@@ -211,14 +266,20 @@ export default function TagInput({
                     {/* Send button */}
                     <button
                         onClick={handleSendMessage}
-                        disabled={loading}
-                        className={`flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-full bg-blue-600 hover:bg-blue-700 cursor-pointer shadow-md transition ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={loading || (!newMessage.trim() && attachedFiles.length === 0)}
+                        className={`flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-full shadow-md transition ${loading || (!newMessage.trim() && attachedFiles.length === 0)
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                            }`}
                     >
-                        <i className="ri-arrow-up-line text-white text-lg" />
+                        {loading ? (
+                            <i className="ri-loader-4-line text-white text-lg animate-spin" />
+                        ) : (
+                            <i className="ri-arrow-up-line text-white text-lg" />
+                        )}
                     </button>
                 </div>
             </div>
         </>
-
     );
 }

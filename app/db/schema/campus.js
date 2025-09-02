@@ -1,4 +1,5 @@
 // server/db/schema.js
+import { boolean } from "drizzle-orm/gel-core";
 import {
     pgTable,
     serial,
@@ -66,7 +67,17 @@ export const messages = pgTable("messages", {
     text: text("text"),
     tag: varchar("tag", { length: 50 }).default("Message").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+
+    // Reply fields
+    replyToId: integer("reply_to_id")
+        .references(() => messages.mid), // points to original message
+    replyToUserId: integer("reply_to_user_id")
+        .references(() => users.uid),
+    replyToUsername: text("reply _to_username"),
+    replyToText: text("reply_to_text"), // store snippet for UI
+    isReply: boolean("is_reply").default(false), // 0 = false, 1 = true
 });
+
 
 // ✅ Files
 export const files = pgTable("files", {

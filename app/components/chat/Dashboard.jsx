@@ -8,9 +8,8 @@ import CampusList from "./CampusList";
 import Filter from "./Filter";
 import Gcam from "./Gcam";
 import Campus from "../ux/Campus";
-import { X, LayoutList, Settings, Users } from "lucide-react"; // distinct icons
+import { X, LayoutList, Settings, Users } from "lucide-react";
 import Image from "next/image";
-
 
 export default function Dashboard() {
     const router = useRouter();
@@ -25,6 +24,9 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [attachedFiles, setAttachedFiles] = useState([]);
     const [showScrollButton, setShowScrollButton] = useState(false);
+
+    // Reply-related state
+    const [replyingTo, setReplyingTo] = useState(null);
 
     const messagesEndRef = useRef(null);
     const scrollContainerRef = useRef(null);
@@ -66,7 +68,9 @@ export default function Dashboard() {
         try {
             const res = await fetch(`/api/ms/${selectedCampus.cid}`);
             const data = await res.json();
-            setMessages(data || []);
+            setMessages(data.messages || []);
+            // console.log(data);
+
         } catch (err) {
             console.error(err);
             setMessages([]);
@@ -79,17 +83,37 @@ export default function Dashboard() {
         fetchGlobalCampuses();
     }, [user, router, fetchCampuses, fetchGlobalCampuses]);
 
-    useEffect(() => { if (selectedCampus) { setMessages([]); fetchMessages(); } }, [selectedCampus, fetchMessages]);
-    useEffect(() => { if (!selectedCampus) return; const i = setInterval(fetchMessages, 5000); return () => clearInterval(i); }, [selectedCampus, fetchMessages]);
-    // useEffect(() => {
-    //     const el = scrollContainerRef.current;
-    //     if (!el) return;
-    //     const handleScroll = () => setShowScrollButton(!(el.scrollHeight - el.scrollTop - el.clientHeight < 100));
-    //     el.addEventListener("scroll", handleScroll);
-    //     return () => el.removeEventListener("scroll", handleScroll);
-    // }, []);
+    useEffect(() => {
+        if (selectedCampus) {
+            setMessages([]);
+            fetchMessages();
+            // Clear reply state when switching campuses
+            setReplyingTo(null);
+        }
+    }, [selectedCampus, fetchMessages]);
 
-    // --- Handlers ---
+    useEffect(() => {
+        if (!selectedCampus) return;
+        const i = setInterval(fetchMessages, 5000);
+        return () => clearInterval(i);
+    }, [selectedCampus, fetchMessages]);
+
+    // --- Reply Handlers ---
+    const handleReply = useCallback((message) => {
+        setReplyingTo(message);
+        // Focus the textarea after setting reply
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+            }
+        }, 100);
+    }, []);
+
+    const cancelReply = useCallback(() => {
+        setReplyingTo(null);
+    }, []);
+
+    // --- Message Handlers ---
     const handleSendMessage = async () => {
         if (!newMessage.trim() && attachedFiles.length === 0) return alert("Type a message or attach a file!");
         if (!selectedCampus) return;
@@ -119,31 +143,51 @@ export default function Dashboard() {
                 else console.error("File upload failed:", data);
             }
 
-            // 2️⃣ Send message with uploaded file URLs
+            // 2️⃣ Send message with uploaded file URLs and reply info
+            const messagePayload = {
+                campusId: selectedCampus.cid,
+                userId: user.uid,
+                text: newMessage,
+                tag: newTag,
+                files: uploadedFiles,
+                // Add reply information if replying
+                ...(replyingTo && {
+                    replyTo: {
+                        messageId: replyingTo.mid,
+                        userId: replyingTo.userId?.uid,
+                        username: replyingTo.userId?.username || "Unknown",
+                        text: replyingTo.text,
+                        tag: replyingTo.tag
+                    }
+                })
+            };
+
             const messageRes = await fetch("/api/ms/send", {
                 method: "POST",
-                body: JSON.stringify({
-                    campusId: selectedCampus.cid,
-                    userId: user.uid,
-                    text: newMessage,
-                    tag: newTag,
-                    files: uploadedFiles, // send uploaded file info
-                }),
+                body: JSON.stringify(messagePayload),
                 headers: { "Content-Type": "application/json" },
             });
 
             const messageData = await messageRes.json();
 
             if (messageRes.ok) {
-                setMessages(prev => [
-                    ...prev,
-                    {
-                        ...messageData,
-                        userId: { uid: user.uid, username: user.username },
-                    },
+                setMessages(prev => [{
+                    ...messageData,
+                    userId: { uid: user.uid, username: user.username },
+                    ...(replyingTo && {
+                        replyTo: {
+                            messageId: replyingTo.mid,
+                            userId: replyingTo.userId?.uid,
+                            username: replyingTo.userId?.username || "Unknown",
+                            text: replyingTo.text,
+                            tag: replyingTo.tag
+                        }
+                    })
+                },
                 ]);
                 setNewMessage("");
                 setAttachedFiles([]);
+                setReplyingTo(null); // Clear reply state after sending
                 scrollToBottom();
             } else console.log("Send message failed:", messageData);
 
@@ -163,6 +207,9 @@ export default function Dashboard() {
         });
     }
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     const handleJoinCampus = async (cid) => {
         if (!user?.uid) return;
@@ -184,48 +231,94 @@ export default function Dashboard() {
         el.style.height = `${el.scrollHeight}px + '10px`;
         setNewMessage(e.target.value);
     };
+
     const handleFileChange = e => setAttachedFiles(prev => [...prev, ...Array.from(e.target.files)]);
     const removeFile = idx => setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
 
-
-    const filteredMessages = useMemo(() => selectedFilter === "All" ? messages : messages.filter(msg => msg.tag === selectedFilter), [messages, selectedFilter]);
-
-
+    const filteredMessages = useMemo(() =>
+        selectedFilter === "All" ? messages : messages.filter(msg => msg.tag === selectedFilter),
+        [messages, selectedFilter]
+    );
 
     const [showRightPanel, setShowRightPanel] = useState(false);
-    const [showLeftPanel, setShowLeftPanel] = useState(true); // Left panel open by default
-    const [mobileView, setMobileView] = useState("campus"); // "campus" or "chat"
+    const [showLeftPanel, setShowLeftPanel] = useState(true);
+    const [mobileView, setMobileView] = useState("campus");
 
     const handleCampusClick = (campus) => {
         setMobileView("chat");
-        setShowLeftPanel(false); // Close left panel after selecting a campus
+        setShowLeftPanel(false);
     };
-
-
 
     // --- Props ---
     const propsForCampuses = { campuses, setSearch, handleCampusClick, search, selectedCampus, setSelectedCampus, user, fetchCampuses };
-    const propsForMessages = { messages: filteredMessages, user, selectedCampus, tagColors, scrollContainerRef };
-    const propsForInput = { newMessage, user, selectedCampus, setNewMessage, handleSendMessage, loading, textareaRef, handleInput, newTag, setNewTag, filters, handleFileChange, attachedFiles, removeFile };
+    const propsForMessages = {
+        messages: filteredMessages,
+        user,
+        selectedCampus,
+        tagColors,
+        scrollContainerRef,
+        onReply: handleReply // Add reply handler
+    };
+    const propsForInput = {
+        newMessage,
+        user,
+        selectedCampus,
+        setNewMessage,
+        handleSendMessage,
+        loading,
+        textareaRef,
+        handleInput,
+        newTag,
+        setNewTag,
+        filters,
+        handleFileChange,
+        attachedFiles,
+        removeFile,
+        replyingTo,
+        onCancelReply: cancelReply
+    };
     const propsForFilters = { filters, selectedFilter, setSelectedFilter };
     const propsForGlobal = { globalCampuses, campuses, inputValue: "", handleJoinCampus };
 
 
+    // Add this useEffect to the Dashboard component to detect if the user is on mobile
+    useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+        };
 
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+
+        return () => {
+            window.removeEventListener('resize', checkIsMobile);
+        };
+    }, []);
+
+    // Add this state to the Dashboard component
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Add this to the Dashboard JSX to show a hint about double-click functionality
+    {
+        !isMobile && (
+            <div className="hidden md:flex items-center justify-center text-xs text-gray-500 mt-2">
+                <i className="ri-information-line mr-1" />
+                Double-click on any message to reply
+            </div>
+        )
+    }
 
     return (
         <div className="h-screen w-full flex flex-col bg-gradient-to-br from-blue-200 via-blue-100 to-purple-200 overflow-hidden">
-
             {/* Top Navbar */}
             <div className="w-full flex items-center justify-between p-2 md:hidden">
                 <div className="flex gap-6">
-
                     <Image src={'/campus.png'} height={40} width={40} alt="campus" />
                     {mobileView === "chat" && (
                         <button
                             onClick={() => {
                                 setMobileView("campus");
-                                setShowLeftPanel(true); // reopen left panel if going back
+                                setShowLeftPanel(true);
                             }}
                             className="p-2 rounded-md bg-gray-100/20 hover:bg-gray-200/30"
                         >
@@ -242,26 +335,24 @@ export default function Dashboard() {
                         onClick={() => setShowLeftPanel(!showLeftPanel)}
                         className="p-2 rounded-md bg-gray-100/20 hover:bg-gray-200/30"
                     >
-                        <LayoutList size={20} /> {/* Campus menu icon */}
+                        <LayoutList size={20} />
                     </button>
                     <button
                         onClick={() => setShowRightPanel(!showRightPanel)}
                         className="p-2 rounded-md bg-gray-100/20 hover:bg-gray-200/30"
                     >
-                        <Settings size={20} /> {/* Filter/settings icon */}
+                        <Settings size={20} />
                     </button>
                 </div>
             </div>
 
             <div className="flex-1 flex flex-col md:flex-row gap-2 md:gap-4 overflow-hidden">
-
                 {/* Left Panel: Campus List */}
                 <div
                     className={`md:w-[250px] md:h-full md:flex flex-col rounded-2xl p-4
         ${showLeftPanel ? "fixed top-0 left-0 z-30 h-full w-full md:relative md:flex" : "hidden md:flex"}
         ${!showLeftPanel ? "bg-transparent md:bg-white/30" : "bg-white/30 backdrop-blur-md shadow-md"}`}
                 >
-                    {/* Close button for mobile */}
                     <div className="md:hidden flex justify-end mb-2">
                         <button
                             onClick={() => setShowLeftPanel(false)}
@@ -271,11 +362,8 @@ export default function Dashboard() {
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto" >
-
+                    <div className="flex-1 overflow-y-auto">
                         <CampusList {...propsForCampuses} />
-
-
                     </div>
                 </div>
 
@@ -300,6 +388,7 @@ export default function Dashboard() {
                                 style={{ maxHeight: mobileView === "campus" ? "70vh" : "auto" }}
                             >
                                 <MesList {...propsForMessages} />
+                                <div ref={messagesEndRef} />
                             </div>
 
                             {/* Input */}
@@ -314,8 +403,7 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {/* Mobile-only placeholder view when no campus is selected */}
-                    {mobileView === "campus" && !selectedCampus && (
+                    {mobileView === "chat" && selectedCampus == null && (
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
                             <Campus />
                             <p className="text-center mt-2 text-sm">Select a campus to start messaging.</p>
@@ -323,14 +411,12 @@ export default function Dashboard() {
                     )}
                 </div>
 
-
                 {/* Right Panel: Filters + Global Campuses */}
                 <div
                     className={`md:w-[300px] md:h-full rounded-2xl p-4 md:flex flex-col
         ${showRightPanel ? "fixed top-0 right-0 z-30 h-full w-full md:relative md:flex" : "hidden md:flex"}
         ${!showRightPanel ? "bg-transparent md:bg-white/40" : "bg-white/40 backdrop-blur-md shadow-md"}`}
                 >
-                    {/* Close button for mobile */}
                     <div className="md:hidden flex justify-end mb-2">
                         <button
                             onClick={() => setShowRightPanel(false)}
@@ -345,9 +431,7 @@ export default function Dashboard() {
                         <Gcam {...propsForGlobal} />
                     </div>
                 </div>
-
             </div>
         </div>
     );
-
 }
