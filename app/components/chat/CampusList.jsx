@@ -2,6 +2,7 @@
 import React from "react";
 import CreateCampusButton from "../ux/CreateCampusButton";
 import Image from "next/image";
+import Gcam from "./Gcam";
 
 export default function CampusList({
     campuses = [],
@@ -11,8 +12,14 @@ export default function CampusList({
     setSelectedCampus,
     user,
     fetchCampuses,
-    handleCampusClick
+    handleCampusClick,
+    globalCampuses,
+    inputValue,
+    handleJoinCampus
 }) {
+
+    const propsForGlobal = { globalCampuses, campuses, inputValue, handleJoinCampus };
+
     return (
         <div className="flex relative flex-col h-full w-full">
             {/* Header + Create button */}
@@ -69,6 +76,8 @@ export default function CampusList({
                         You haven’t joined any campus yet.
                     </li>
                 )}
+
+                <Gcam {...propsForGlobal} />
 
                 <div className="h-10 hidden lg:flex rounded-4xl px-4 text-white absolute bottom-0 w-full bg-blue-400">
                     <span>{user?.username || 'Unknown'}</span>

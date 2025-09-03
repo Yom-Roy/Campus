@@ -32,6 +32,7 @@ export default function Dashboard() {
     const scrollContainerRef = useRef(null);
     const textareaRef = useRef(null);
 
+
     const user = useMemo(() => {
         try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
     }, []);
@@ -205,9 +206,6 @@ export default function Dashboard() {
         });
     }
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
 
     const handleJoinCampus = async (cid) => {
         if (!user?.uid) return;
@@ -249,15 +247,17 @@ export default function Dashboard() {
         setShowLeftPanel(false);
     };
 
+
     // --- Props ---
-    const propsForCampuses = { campuses, setSearch, handleCampusClick, search, selectedCampus, setSelectedCampus, user, fetchCampuses };
+    const propsForCampuses = { campuses, globalCampuses, inputValue: "", handleJoinCampus, setSearch, handleCampusClick, search, selectedCampus, setSelectedCampus, user, fetchCampuses };
     const propsForMessages = {
         messages: filteredMessages,
         user,
         selectedCampus,
         tagColors,
         scrollContainerRef,
-        onReply: handleReply // Add reply handler
+        onReply: handleReply,
+        messagesEndRef
     };
     const propsForInput = {
         newMessage,
@@ -278,7 +278,6 @@ export default function Dashboard() {
         onCancelReply: cancelReply
     };
     const propsForFilters = { filters, selectedFilter, setSelectedFilter };
-    const propsForGlobal = { globalCampuses, campuses, inputValue: "", handleJoinCampus };
 
 
     // Add this useEffect to the Dashboard component to detect if the user is on mobile
@@ -294,6 +293,9 @@ export default function Dashboard() {
             window.removeEventListener('resize', checkIsMobile);
         };
     }, []);
+
+
+
 
     // Add this state to the Dashboard component
     const [isMobile, setIsMobile] = useState(false);
@@ -388,7 +390,7 @@ export default function Dashboard() {
                             {/* Messages */}
                             <div
                                 id="msg"
-                                className="flex-1 overflow-y-auto"
+                                className="flex-1 overflow-y-auto flex"
                                 style={{ maxHeight: mobileView === "campus" ? "70vh" : "auto" }}
                             >
                                 <MesList {...propsForMessages} />
@@ -425,9 +427,6 @@ export default function Dashboard() {
                     </div>
 
                     <Filter {...propsForFilters} />
-                    <div className="mt-4 flex-1 overflow-y-auto">
-                        <Gcam {...propsForGlobal} />
-                    </div>
                 </div>
             </div>
         </div>
