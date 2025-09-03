@@ -81,7 +81,7 @@ export default function MesList({
         const deltaX = currentX - startX;
 
         // Swipe left to reply
-        if (e.type === "touchend" && deltaX < 50) {
+        if (e.type === "touchend" && deltaX < -50) {
             handleReplyClick(message);
         }
 
