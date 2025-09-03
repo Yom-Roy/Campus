@@ -143,24 +143,22 @@ export default function Dashboard() {
                 else console.error("File upload failed:", data);
             }
 
-            // 2️⃣ Send message with uploaded file URLs and reply info
             const messagePayload = {
                 campusId: selectedCampus.cid,
                 userId: user.uid,
                 text: newMessage,
                 tag: newTag,
                 files: uploadedFiles,
-                // Add reply information if replying
                 ...(replyingTo && {
                     replyTo: {
                         messageId: replyingTo.mid,
-                        userId: replyingTo.userId?.uid,
-                        username: replyingTo.userId?.username || "Unknown",
+                        userId: replyingTo.userId?.uid,   // only userId, no username
                         text: replyingTo.text,
                         tag: replyingTo.tag
                     }
                 })
             };
+
 
             const messageRes = await fetch("/api/ms/send", {
                 method: "POST",
@@ -171,25 +169,25 @@ export default function Dashboard() {
             const messageData = await messageRes.json();
 
             if (messageRes.ok) {
-                setMessages(prev => [{
-                    ...messageData,
-                    userId: { uid: user.uid, username: user.username },
-                    ...(replyingTo && {
-                        replyTo: {
-                            messageId: replyingTo.mid,
-                            userId: replyingTo.userId?.uid,
-                            username: replyingTo.userId?.username || "Unknown",
-                            text: replyingTo.text,
-                            tag: replyingTo.tag
-                        }
-                    })
-                },
+                setMessages(prev => [
+                    {
+                        ...messageData,
+                        userId: { uid: user.uid, username: user.username },
+                        ...(replyingTo && {
+                            replyTo: {
+                                messageId: replyingTo.mid,
+                            }
+                        })
+                    },
+                    ...prev
                 ]);
                 setNewMessage("");
                 setAttachedFiles([]);
-                setReplyingTo(null); // Clear reply state after sending
+                setReplyingTo(null);
                 scrollToBottom();
-            } else console.log("Send message failed:", messageData);
+            }
+
+            else console.log("Send message failed:", messageData);
 
         } catch (err) {
             console.log(err);
@@ -221,6 +219,8 @@ export default function Dashboard() {
             const data = await res.json();
             if (!res.ok) return console.error(data);
             fetchCampuses();
+            setShowRightPanel(false);
+
         } catch (err) { console.error(err); }
     };
 
@@ -346,23 +346,26 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col md:flex-row gap-2 md:gap-4 overflow-hidden">
+            <div className="flex-1 relative flex flex-col md:flex-row gap-2 md:gap-4 overflow-hidden">
                 {/* Left Panel: Campus List */}
                 <div
-                    className={`md:w-[250px] md:h-full md:flex flex-col rounded-2xl p-4
+                    className={`md:w-[250px] relative md:h-full md:flex flex-col rounded-2xl p-4
         ${showLeftPanel ? "fixed top-0 left-0 z-30 h-full w-full md:relative md:flex" : "hidden md:flex"}
         ${!showLeftPanel ? "bg-transparent md:bg-white/30" : "bg-white/30 backdrop-blur-md shadow-md"}`}
                 >
-                    <div className="md:hidden flex justify-end mb-2">
+                    <div className="md:hidden flex justify-between mb-2">
+                        <div className="h-auto flex items-center justify-center rounded-4xl px-4 text-white w-auto bg-blue-400">
+                            <span>{user?.username || 'Unknown'}</span>
+                        </div>
                         <button
                             onClick={() => setShowLeftPanel(false)}
-                            className="p-2 rounded-md bg-gray-100/20 hover:bg-gray-200/30"
+                            className="p-2 rounded-md flex items-center ju h-8 w-8 mb-2 bg-gray-400/20 hover:bg-gray-200/30"
                         >
                             <X size={20} />
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 relative overflow-y-auto">
                         <CampusList {...propsForCampuses} />
                     </div>
                 </div>
@@ -375,7 +378,7 @@ export default function Dashboard() {
                     {selectedCampus ? (
                         <>
                             {/* Chat Header */}
-                            <div className="mb-2 md:mb-4 p-2 bg-white/20 rounded-lg shrink-0 flex justify-between items-center">
+                            <div className="mb-2 hidden lg:flex md:mb-4 p-2 bg-white/20 rounded-lg shrink-0 justify-between items-center">
                                 <h2 className="font-semibold text-gray-700 text-sm md:text-base">
                                     {selectedCampus.name || `Campus ${selectedCampus.cid}`}
                                 </h2>
@@ -384,6 +387,7 @@ export default function Dashboard() {
 
                             {/* Messages */}
                             <div
+                                id="msg"
                                 className="flex-1 overflow-y-auto"
                                 style={{ maxHeight: mobileView === "campus" ? "70vh" : "auto" }}
                             >
@@ -403,12 +407,6 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {mobileView === "chat" && selectedCampus == null && (
-                        <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-                            <Campus />
-                            <p className="text-center mt-2 text-sm">Select a campus to start messaging.</p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Right Panel: Filters + Global Campuses */}

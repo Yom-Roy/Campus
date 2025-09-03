@@ -1,5 +1,6 @@
 import { db } from "@/app/db";
-import { messages, files } from "@/app/db/schema/campus";
+import { messages, files, users } from "@/app/db/schema/campus";
+import { eq } from "drizzle-orm";
 
 export async function POST(req) {
     try {
@@ -12,21 +13,51 @@ export async function POST(req) {
         const replyTo = body.replyTo;
 
         if (!campusId || !userId) {
-            return new Response(JSON.stringify({ error: "Missing campusId or userId" }), { status: 400 });
+            return new Response(
+                JSON.stringify({ error: "Missing campusId or userId" }),
+                { status: 400 }
+            );
         }
 
-        // 1️⃣ Insert message
-        const [msg] = await db.insert(messages).values({
-            campusId,
-            userId,
-            text,
-            tag,
-            isReply: replyTo ? true : false,
-            replyToId: replyTo?.messageId,
-            replyToUserId: replyTo?.userId,
-            replyToUsername: replyTo?.username,
-            replyToText: replyTo?.text,
-        }).returning();
+        // 🟢 If replying, fetch original message & user
+        let replyData = null;
+        if (replyTo?.messageId) {
+            const [originalMsg] = await db
+                .select({
+                    mid: messages.mid,
+                    text: messages.text,
+                    uid: messages.userId,
+                    username: users.username,
+                })
+                .from(messages)
+                .leftJoin(users, eq(messages.userId, users.uid))
+                .where(eq(messages.mid, replyTo.messageId));
+
+            if (originalMsg) {
+                replyData = {
+                    id: originalMsg.mid,
+                    userId: originalMsg.uid,
+                    username: originalMsg.username,
+                    text: originalMsg.text,
+                };
+            }
+        }
+
+        // 1️⃣ Insert new message
+        const [msg] = await db
+            .insert(messages)
+            .values({
+                campusId,
+                userId,
+                text,
+                tag,
+                isReply: !!replyData,
+                replyToId: replyData?.id || null,
+                replyToUserId: replyData?.userId || null,
+                replyToUsername: replyData?.username || null,
+                replyToText: replyData?.text || null,
+            })
+            .returning();
 
         // 2️⃣ Insert files
         for (const file of uploadedFiles) {
@@ -38,9 +69,18 @@ export async function POST(req) {
             });
         }
 
-        return new Response(JSON.stringify({ ...msg, files: uploadedFiles }), { status: 200 });
+        return new Response(
+            JSON.stringify({
+                ...msg,
+                files: uploadedFiles,
+                ...(replyData && { replyTo: replyData }),
+            }),
+            { status: 200 }
+        );
     } catch (err) {
         console.error("[SEND_MESSAGE_ERROR]", err);
-        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+        });
     }
 }

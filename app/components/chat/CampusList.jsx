@@ -14,7 +14,7 @@ export default function CampusList({
     handleCampusClick
 }) {
     return (
-        <div className="flex flex-col h-full w-full">
+        <div className="flex relative flex-col h-full w-full">
             {/* Header + Create button */}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-1">
@@ -69,6 +69,10 @@ export default function CampusList({
                         You haven’t joined any campus yet.
                     </li>
                 )}
+
+                <div className="h-10 hidden lg:flex rounded-4xl px-4 text-white absolute bottom-0 w-full bg-blue-400">
+                    <span>{user?.username || 'Unknown'}</span>
+                </div>
             </ul>
         </div>
     );

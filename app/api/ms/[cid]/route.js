@@ -1,22 +1,21 @@
-// app/api/campus/[cid]/route.js
 import { db } from "@/app/db";
-import { messages, users, files } from "@/app/db/schema/campus";
-import { eq } from "drizzle-orm";
+import { messages, files, users } from "@/app/db/schema/campus";
+import { eq, desc, inArray } from "drizzle-orm";
 
 export async function GET(req, { params }) {
     try {
         const { cid } = await params;
-        const campusId = parseInt(cid, 10);
+        const campusId = Number(cid);
 
-        if (!campusId || isNaN(campusId)) {
-            return new Response(
-                JSON.stringify({ error: "Invalid campus ID", messages: [] }),
-                { status: 400 }
-            );
+        if (!campusId) {
+            return new Response(JSON.stringify({ error: "campusId required", messages: [] }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+            });
         }
 
-        // Fetch raw messages + joined user + files
-        const rows = await db
+        // ✅ Fetch messages + user info
+        const data = await db
             .select({
                 mid: messages.mid,
                 campusId: messages.campusId,
@@ -25,74 +24,97 @@ export async function GET(req, { params }) {
                 createdAt: messages.createdAt,
                 isReply: messages.isReply,
                 replyToId: messages.replyToId,
-                replyToUserId: messages.replyToUserId,
-                replyToUsername: messages.replyToUsername,
                 replyToText: messages.replyToText,
-                user_uid: users.uid,
-                user_username: users.username,
-                user_email: users.email,
-                file_id: files.id,
-                file_filename: files.filename,
-                file_url: files.url,
-                file_type: files.fileType,
+                replyToUsername: messages.replyToUsername,
+                user: {
+                    uid: users.uid,
+                    username: users.username,
+                },
             })
             .from(messages)
             .leftJoin(users, eq(messages.userId, users.uid))
-            .leftJoin(files, eq(messages.mid, files.messageId))
             .where(eq(messages.campusId, campusId))
-            .orderBy(messages.createdAt);
+            .orderBy(desc(messages.createdAt));
 
-        // Group files under messages
-        const map = new Map();
-        for (const row of rows) {
-            if (!map.has(row.mid)) {
-                map.set(row.mid, {
-                    mid: row.mid,
-                    campusId: row.campusId,
-                    text: row.text,
-                    tag: row.tag,
-                    createdAt: row.createdAt,
-                    isReply: row.isReply,
-                    replyTo: row.isReply
-                        ? {
-                            mid: row.replyToId,
-                            text: row.replyToText,
-                            user: {
-                                uid: row.replyToUserId,
-                                username: row.replyToUsername,
-                            },
-                        }
-                        : null,
-                    user: {
-                        uid: row.user_uid,
-                        username: row.user_username,
-                        email: row.user_email,
-                    },
-                    files: [],
-                });
-            }
-
-            if (row.file_id) {
-                map.get(row.mid).files.push({
-                    id: row.file_id,
-                    filename: row.file_filename,
-                    url: row.file_url,
-                    fileType: row.file_type,
-                });
-            }
+        // ✅ Fetch files only for returned mids
+        const mids = data.map((m) => m.mid);
+        let filesData = [];
+        if (mids.length > 0) {
+            filesData = await db.select().from(files).where(inArray(files.messageId, mids));
         }
 
-        const messagesData = Array.from(map.values());
+        // ✅ Attach files
+        const withFiles = data.map((msg) => ({
+            ...msg,
+            files: filesData.filter((f) => f.messageId === msg.mid),
+        }));
 
-        return new Response(JSON.stringify({ messages: messagesData }), {
+        return new Response(JSON.stringify({ messages: withFiles }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
         });
     } catch (err) {
         console.error("[FETCH_MESSAGES_ERROR]", err);
-        return new Response(
-            JSON.stringify({ error: err.message, messages: [] }),
-            { status: 500 }
-        );
+        return new Response(JSON.stringify({ error: err.message, messages: [] }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
+}
+
+export async function POST(req) {
+    try {
+        const body = await req.json();
+
+        const {
+            campusId,
+            userId,
+            text,
+            tag = "Message",
+            replyToId,
+            replyToUserId,
+            replyToUsername,
+            replyToText,
+            files: fileArray = [],
+        } = body;
+
+        const inserted = await db
+            .insert(messages)
+            .values({
+                campusId,
+                userId,
+                text,
+                tag,
+                isReply: !!replyToId,
+                replyToId,
+                replyToUserId,
+                replyToUsername,
+                replyToText,
+            })
+            .returning();
+
+        const messageId = inserted[0].mid;
+
+        if (fileArray.length > 0) {
+            await db.insert(files).values(
+                fileArray.map((f) => ({
+                    messageId,
+                    filename: f.filename,
+                    url: f.url,
+                    fileType: f.fileType,
+                }))
+            );
+        }
+
+        return new Response(JSON.stringify({ success: true, message: inserted[0] }), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+        });
+    } catch (err) {
+        console.error("[POST_MESSAGE_ERROR]", err);
+        return new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+        });
     }
 }

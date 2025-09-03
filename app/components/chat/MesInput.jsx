@@ -193,6 +193,11 @@ export default function MesInput({
                                     <span className="font-semibold">{tag.name}</span>
                                 </button>
                             ))}
+
+                            <label className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 cursor-pointer rounded-full bg-white border border-gray-300 shadow-sm hover:bg-gray-100 transition">
+                                <i className="ri-attachment-2 text-gray-700 text-lg" />
+                                <input type="file" className="hidden" onChange={handleFileChange} multiple />
+                            </label>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -200,18 +205,13 @@ export default function MesInput({
                 {/* Input container */}
                 <div className="flex items-end gap-2 w-full flex-wrap md:flex-nowrap">
                     {/* Left controls (plus + attach) */}
-                    <div className="flex items-center gap-1 md:gap-2">
+                    <div className="flex items-center gap-1 mb-1 md:gap-2">
                         <button
                             onClick={() => setShowTags((prev) => !prev)}
                             className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-gray-300 shadow-sm hover:bg-gray-100 transition"
                         >
                             <i className={`ri-${showTags ? "close" : "add"}-line text-gray-700 text-lg`} />
                         </button>
-
-                        <label className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 cursor-pointer rounded-full bg-white border border-gray-300 shadow-sm hover:bg-gray-100 transition">
-                            <i className="ri-attachment-2 text-gray-700 text-lg" />
-                            <input type="file" className="hidden" onChange={handleFileChange} multiple />
-                        </label>
                     </div>
 
                     {/* Middle input box */}
@@ -223,20 +223,20 @@ export default function MesInput({
                         {newTag && (
                             <div
                                 ref={tagRef}
-                                className={`absolute transition-all duration-200 ${newMessage.split("\n").length > 1 || newMessage.length > 40
+                                className={`absolute flex items-center justify-center transition-all duration-200 ${newMessage.split("\n").length > 1 || newMessage.length > 40
                                     ? "-top-4 left-2 md:left-3 scale-90"
                                     : "inset-y-0 left-2 md:left-3 flex items-center"
                                     }`}
                             >
-                                <div className={`flex items-center px-1 md:px-2 py-0.5 rounded-full text-xs md:text-sm font-medium border border-${TAGS.find((t) => t.name === newTag)?.color}-500 bg-white`}>
+                                <div className={`flex items-center justify-center ${newTag !== "Message" ? 'px-2 w-10' : 'h-6 w-6'} lg:w-auto lg:h-auto lg:px-2 lg:py-0.5 rounded-full text-xs md:text-sm font-medium border border-${TAGS.find((t) => t.name === newTag)?.color}-500 bg-white`}>
                                     <i className={`${TAGS.find((t) => t.name === newTag)?.icon} ${TAGS.find((t) => t.name === newTag)?.iconColor} text-xs md:text-sm`} />
-                                    <span className="ml-1 text-gray-800">{newTag}</span>
+                                    <span className="ml-1 lg:flex hidden text-gray-800">{newTag}</span>
                                     {newTag !== "Message" && (
                                         <button
                                             onClick={() => setNewTag("Message")}
                                             className="cursor-pointer ml-1 text-gray-500 hover:text-red-500"
                                         >
-                                            <i className="ri-close-line text-[12px] md:text-[14px]" />
+                                            <i className="ri-close-line text-[14px] lg:text-[18px] md:text-[14px]" />
                                         </button>
                                     )}
                                 </div>
@@ -280,7 +280,7 @@ export default function MesInput({
                     <button
                         onClick={handleSendMessage}
                         disabled={loading || (!newMessage.trim() && attachedFiles.length === 0)}
-                        className={`flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-full shadow-md transition ${loading || (!newMessage.trim() && attachedFiles.length === 0)
+                        className={`flex items-center justify-center w-6 h-6 md:w-6 md:h-6 mb-2 rounded-full shadow-md transition ${loading || (!newMessage.trim() && attachedFiles.length === 0)
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
                             }`}
