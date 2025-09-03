@@ -158,7 +158,7 @@ export default function MesList({
                                     }`}
                             >
                                 {/* Reply bubble */}
-                                {msg.replyTo && (
+                                {msg.isReply && (
                                     <div
                                         className={`mb-2 rounded-lg overflow-hidden ${isMine ? "bg-blue-600/20" : "bg-gray-200/80"
                                             }`}
@@ -174,11 +174,10 @@ export default function MesList({
                                                         className={`text-xs font-semibold ${isMine ? "text-blue-200" : "text-gray-700"
                                                             }`}
                                                     >
-                                                        {msg?.replyTo?.user
-                                                            ? msg.replyTo.user.uid === user?.uid
-                                                                ? "You"
-                                                                : msg.replyTo.user.username || "Unknown"
-                                                            : "Unknown"}
+                                                        {msg.isReply ?
+                                                            msg.replyToId == user.uid ? ('You') :
+                                                                (msg.replyToUsername) : ''
+                                                        }
 
                                                     </span>
                                                 </div>
@@ -186,7 +185,7 @@ export default function MesList({
                                                     className={`text-xs leading-tight ${isMine ? "text-blue-100/90" : "text-gray-600"
                                                         }`}
                                                 >
-                                                    {msg.replyTo.text || "(No message)"}
+                                                    {msg.replyToText || "(No message)"}
                                                 </p>
                                             </div>
                                         </div>
