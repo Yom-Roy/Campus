@@ -69,7 +69,7 @@ export default function Dashboard() {
     const fetchMessages = useCallback(async () => {
         if (!selectedCampus?.cid) return;
         try {
-            const res = await fetch(`/api/ms/${selectedCampus.cid}`);
+            const res = await fetch(`/api/ms/${selectedCampus.cid}?userId=${user.uid}`);
             const data = await res.json();
             setMessages(data.messages || []);
             // console.log(data);
@@ -78,7 +78,7 @@ export default function Dashboard() {
             console.error(err);
             setMessages([]);
         }
-    }, [selectedCampus]);
+    }, [selectedCampus, user]);
 
     useEffect(() => {
         if (!user) return router.push("/login");
@@ -272,6 +272,7 @@ export default function Dashboard() {
         messages: filteredMessages,
         user,
         selectedCampus,
+        setMessages,
         tagColors,
         scrollContainerRef,
         onReply: handleReply,

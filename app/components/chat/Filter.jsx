@@ -8,7 +8,7 @@ const TAGS = [
     { name: "Question", color: "amber", icon: "ri-question-line", iconColor: "text-amber-500" },
     { name: "Summary", color: "rose", icon: "ri-file-list-line", iconColor: "text-rose-500" },
     { name: "TL;DR", color: "cyan", icon: "ri-article-line", iconColor: "text-cyan-500" },
-    { name: "+1 Me Too", color: "pink", icon: "ri-add-line", iconColor: "text-pink-500" },
+    { name: "Me Too", color: "pink", icon: "+1", iconColor: "text-pink-500" },
 ];
 
 const BG_COLORS = {
@@ -78,7 +78,17 @@ export default function Filter({ selectedFilter, setSelectedFilter, onTldr, Tldr
                                 className={`glass flex items-center py-2 gap-1 h-6 rounded-full px-2 transition group-hover:bg-white/40 group-active:scale-[0.97] ${isSelected ? BG_COLORS[tag.color] : ""
                                     }`}
                             >
-                                <i className={`${tag.icon} ${tag.iconColor} text-sm`}></i>
+
+                                {tag.name === "Me Too" ? (
+                                    <div
+                                        className={`flex items-center justify-center w-4 h-4 rounded-full border-2 border-pink-300`}
+                                    >
+                                        <span className="text-pink-500 text-[9px] font-bold">+1</span>
+                                    </div>
+                                ) : (
+                                    <i className={`${tag.icon} ${tag.iconColor} text-sm`}></i>
+                                )}
+
                                 <span className="text-[1.5vh] font-semibold text-gray-800">
                                     {tag.name}
                                 </span>

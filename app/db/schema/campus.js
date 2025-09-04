@@ -58,25 +58,38 @@ export const campusMembers = pgTable(
 // ✅ Messages
 export const messages = pgTable("messages", {
     mid: serial("mid").primaryKey(),
-    campusId: integer("campus_id")
-        .notNull()
-        .references(() => campuses.cid),
-    userId: integer("user_id")
-        .notNull()
-        .references(() => users.uid),
+    campusId: integer("campus_id").notNull().references(() => campuses.cid),
+    userId: integer("user_id").notNull().references(() => users.uid),
     text: text("text"),
     tag: varchar("tag", { length: 50 }).default("Message").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 
-    // Reply fields
-    replyToId: integer("reply_to_id")
-        .references(() => messages.mid), // points to original message
-    replyToUserId: integer("reply_to_user_id")
-        .references(() => users.uid),
-    replyToUsername: text("reply _to_username"),
-    replyToText: text("reply_to_text"), // store snippet for UI
-    isReply: boolean("is_reply").default(false), // 0 = false, 1 = true
+    // Reply info
+    isReply: boolean("is_reply").default(false),
+    replyToId: integer("reply_to_id").references(() => messages.mid),
+    replyToUserId: integer("reply_to_user_id").references(() => users.uid),
+    replyToUsername: text("reply_to_username"),
+    replyToText: text("reply_to_text"),
+
+    // Me Too
+    meTooCount: integer("me_too_count").default(0).notNull(),
 });
+
+export const meToo = pgTable("me_too", {
+    id: serial("id").primaryKey(),
+    messageId: integer("message_id").notNull().references(() => messages.mid),
+    userId: integer("user_id").notNull().references(() => users.uid),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+
+export const messageSeen = pgTable("message_seen", {
+    id: serial("id").primaryKey(),
+    messageId: integer("message_id").notNull().references(() => messages.mid),
+    userId: integer("user_id").notNull().references(() => users.uid),
+    seenAt: timestamp("seen_at").defaultNow().notNull(),
+});
+
 
 
 // ✅ Files

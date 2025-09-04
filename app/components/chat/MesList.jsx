@@ -31,12 +31,16 @@ export default function MesList({
     selectedCampus,
     scrollContainerRef,
     onReply,
+    setMessages
 }) {
     const [swipeData, setSwipeData] = useState({});
     const [isMobile, setIsMobile] = useState(false);
 
     const safeMessages = Array.isArray(messages) ? messages : [];
     const messagesEndRef = useRef(null)
+    const [meTooState, setMeTooState] = useState({});
+    const [Mid, setMid] = useState()
+
 
     useEffect(() => {
         const checkIsMobile = () => {
@@ -120,6 +124,69 @@ export default function MesList({
 
 
 
+    const handleReaction = async (mid) => {
+        if (!mid) {
+            console.warn("handleReaction: no mid provided");
+            return;
+        }
+        if (!user?.uid) {
+            console.warn("handleReaction: no userId available");
+            return;
+        }
+
+        // Prevent double reaction
+        if (meTooState[mid]) return;
+
+        // Optimistic UI update
+        setMessages((prev) =>
+            prev.map((msg) =>
+                msg.mid === mid
+                    ? { ...msg, meTooCount: (msg.meTooCount || 0) + 1 }
+                    : msg
+            )
+        );
+        setMeTooState((prev) => ({ ...prev, [mid]: true }));
+
+        try {
+            const res = await fetch("/api/ms/me-too", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mid, userId: user.uid }),
+            });
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                console.error("[ME_TOO_ERROR]", data.error || "Unknown error");
+
+                // rollback UI
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.mid === mid
+                            ? { ...msg, meTooCount: (msg.meTooCount || 1) - 1 }
+                            : msg
+                    )
+                );
+                setMeTooState((prev) => ({ ...prev, [mid]: false }));
+            }
+        } catch (err) {
+            console.error("[ME_TOO_ERROR]", err);
+
+            // rollback UI
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.mid === mid
+                        ? { ...msg, meTooCount: (msg.meTooCount || 1) - 1 }
+                        : msg
+                )
+            );
+            setMeTooState((prev) => ({ ...prev, [mid]: false }));
+        }
+    };
+
+
+
+
+
 
 
     return (
@@ -169,17 +236,20 @@ export default function MesList({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.3 }}
-                                className={`flex ${isMine ? "justify-end" : "justify-start"
+                                className={`flex relative group ${isMine ? "justify-end" : "justify-start"
                                     } mb-2`}
                                 style={{ transform: `translateX(${getSwipeOffset(msg.mid)}px)` }}
                             >
+
+
                                 <div
                                     id="msg"
-                                    className={`min-w-[20vh] group no-scrollbar max-w-[30vh] lg:max-w-[40vh] max-h-[50vh] rounded-2xl shadow p-3 text-sm flex flex-col gap-2 ${isMine
+                                    className={`relative min-w-[20vh] no-scrollbar max-w-[30vh] lg:max-w-[40vh] max-h-[50vh] rounded-2xl shadow p-3 text-sm flex flex-col gap-2 ${isMine
                                         ? "bg-blue-500 text-white"
                                         : "bg-gray-100 text-gray-800"
                                         }`}
                                 >
+
                                     {/* Reply bubble */}
                                     {msg.isReply && (
                                         <div
@@ -275,8 +345,28 @@ export default function MesList({
                                             })}
                                         </div>
                                     )}
+
+                                    {/* Reaction button dynamically positioned */}
+                                    <div
+                                        className={`absolute ${isMine ? "hidden" : "left-[110%]"}`}
+
+                                    >
+                                        <button
+                                            onClick={() => handleReaction(msg.mid)}
+                                            disabled={meTooState[msg.mid]}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-full bg-pink-100 border border-pink-300 shadow transition hover:scale-105 active:scale-95 ${meTooState[msg.mid] ? "opacity-50 cursor-not-allowed" : ""
+                                                }`}
+                                        >
+                                            <span className="text-pink-500 text-sm font-bold">+1</span>
+                                        </button>
+                                    </div>
                                 </div>
+
+                                <p>{msg.seen ? "Seen" : "Unseen"} | Me Too: {msg.meTooCount}</p>
+
+
                             </motion.div>
+
                         );
                     })}
                 </AnimatePresence>
