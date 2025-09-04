@@ -360,10 +360,8 @@ export default function MesList({
                                             <span className="text-pink-500 text-sm font-bold">+1</span>
                                         </button>
                                     </div>
+                                    <p className="absolute bottom-0">{msg.seen ? "Seen" : "Unseen"} | Me Too: {msg.meTooCount}</p>
                                 </div>
-
-                                <p>{msg.seen ? "Seen" : "Unseen"} | Me Too: {msg.meTooCount}</p>
-
 
                             </motion.div>
 
