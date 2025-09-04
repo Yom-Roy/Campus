@@ -32,6 +32,8 @@ export default function Dashboard() {
     const scrollContainerRef = useRef(null);
     const textareaRef = useRef(null);
 
+    const [Tldr, setTldr] = useState("")
+
 
     const user = useMemo(() => {
         try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
@@ -247,6 +249,22 @@ export default function Dashboard() {
         setShowLeftPanel(false);
     };
 
+    async function handleTldr() {
+        if (!selectedCampus) {
+            alert('Select a campus first!')
+            return;
+        }
+        try {
+            const res = await fetch(`/api/ai/tldr/${selectedCampus.cid}`);
+            const data = await res.json();
+            // Show in modal / toast
+            setTldr(data.summary);
+        } catch (err) {
+            console.error("TLDR failed:", err);
+            alert("Failed to generate TL;DR.");
+        }
+    }
+
 
     // --- Props ---
     const propsForCampuses = { campuses, globalCampuses, inputValue: "", handleJoinCampus, setSearch, handleCampusClick, search, selectedCampus, setSelectedCampus, user, fetchCampuses };
@@ -277,7 +295,7 @@ export default function Dashboard() {
         replyingTo,
         onCancelReply: cancelReply
     };
-    const propsForFilters = { filters, selectedFilter, setSelectedFilter };
+    const propsForFilters = { filters, selectedFilter, Tldr, setSelectedFilter };
 
 
     // Add this useEffect to the Dashboard component to detect if the user is on mobile
@@ -426,7 +444,8 @@ export default function Dashboard() {
                         </button>
                     </div>
 
-                    <Filter {...propsForFilters} />
+                    <Filter onTldr={handleTldr} {...propsForFilters} />
+
                 </div>
             </div>
         </div>

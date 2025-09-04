@@ -39,9 +39,9 @@ const SignUp = () => {
                 // ✅ Use join logic to add owner as member
                 const response = await fetch("/api/cam/join", {
                     method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ campusId: process.env.MAIN_CAMPUSID, userId: data.user.id, role: "member" })
+                    body: JSON.stringify({ campusId: Number(process.env.MAIN_CAMPUSID), userId: data.user.id, role: "member" })
                 });
-                await res.json()
+                await response.json()
                 setForm({ username: "", email: "", password: "" });
                 // Redirect to login page after 1s
                 setTimeout(() => {
